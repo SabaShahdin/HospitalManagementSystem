@@ -11,36 +11,26 @@ class AdminSignupScreen extends StatefulWidget {
 
 class _AdminSignupScreenState extends State<AdminSignupScreen> {
   final emailController = TextEditingController();
-  final passwordController =
-      TextEditingController(); // Unused in backend but retained for UI
+  final passwordController = TextEditingController(); // Reserved for future use
   final nameController = TextEditingController();
   final contactController = TextEditingController();
-  final departmentController = TextEditingController();
 
-  bool showEmailForm = false;
+  final _formKey = GlobalKey<FormState>();
   bool isLoading = false;
 
   Future<void> registerAdmin() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final String email = emailController.text.trim();
     final String name = nameController.text.trim();
     final String contact = contactController.text.trim();
-    final String department = departmentController.text.trim();
+    final String department = "Management"; // Hardcoded
 
-    if (email.isEmpty || name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields')),
-      );
-      return;
-    }
-
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     try {
       final response = await http.post(
-        Uri.parse(
-            'http://10.0.2.2:5000/api/admin/register'), // Use 10.0.2.2 for Android emulator
+        Uri.parse('http://localhost:5000/api/admin/register'), // Use correct IP
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email,
@@ -59,20 +49,35 @@ class _AdminSignupScreenState extends State<AdminSignupScreen> {
         emailController.clear();
         nameController.clear();
         contactController.clear();
-        departmentController.clear();
-        setState(() => showEmailForm = false);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(resData['message'] ?? 'Error occurred')),
+          SnackBar(content: Text(resData['message'] ?? 'Registration failed')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to connect to server: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
     } finally {
       setState(() => isLoading = false);
     }
+  }
+
+  String? validateEmail(String? value) {
+    if (value == null || value.isEmpty) return 'Email is required';
+    final emailRegex = RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$');
+    return emailRegex.hasMatch(value) ? null : 'Enter a valid email';
+  }
+
+  String? validateName(String? value) {
+    if (value == null || value.isEmpty) return 'Name is required';
+    return null;
+  }
+
+  String? validateContact(String? value) {
+    if (value == null || value.isEmpty) return 'Contact number is required';
+    final contactRegex = RegExp(r'^\d{10,15}$');
+    return contactRegex.hasMatch(value) ? null : 'Enter a valid contact number';
   }
 
   @override
@@ -87,72 +92,51 @@ class _AdminSignupScreenState extends State<AdminSignupScreen> {
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(
-                height: 100,
-                child:
-                    Image.asset('assets/images/logo.png', fit: BoxFit.contain),
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                "Create Admin Account",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 40),
-
-              // Continue with Email
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () =>
-                      setState(() => showEmailForm = !showEmailForm),
-                  child: const Text("Continue with Email"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[700],
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 100,
+                  child: Image.asset('assets/images/logo.png',
+                      fit: BoxFit.contain),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              if (showEmailForm) ...[
-                TextField(
+                const SizedBox(height: 30),
+                const Text(
+                  "Create Admin Account",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 40),
+                TextFormField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: "Full Name",
                     border: OutlineInputBorder(),
                   ),
+                  validator: validateName,
                 ),
                 const SizedBox(height: 15),
-                TextField(
+                TextFormField(
                   controller: emailController,
                   decoration: const InputDecoration(
                     labelText: "Email",
                     border: OutlineInputBorder(),
                   ),
+                  validator: validateEmail,
+                  keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 15),
-                TextField(
+                TextFormField(
                   controller: contactController,
                   decoration: const InputDecoration(
                     labelText: "Contact Number",
                     border: OutlineInputBorder(),
                   ),
+                  validator: validateContact,
                   keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 15),
-                TextField(
-                  controller: departmentController,
-                  decoration: const InputDecoration(
-                    labelText: "Department",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 25),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -164,12 +148,13 @@ class _AdminSignupScreenState extends State<AdminSignupScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green[700],
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
               ],
-            ],
+            ),
           ),
         ),
       ),
